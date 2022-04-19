@@ -1,45 +1,71 @@
 
+#-------- Modules ------------------------------------------------------
+import streamlit as st  # For webpage
+import pickle           # Installing model
+from PIL import Image   
+import requests         
 import numpy as np
-import cv2
-
-import streamlit as st
-import tensorflow as tf
-import keras
-from tensorflow import keras
-import av
-from keras.preprocessing.image import img_to_array
-from streamlit_webrtc import webrtc_streamer,VideoTransformerBase,RTCConfiguration,VideoProcessorBase,WebRtcMode
 
 
 
+#-------------- Page Configuration -----------------------
+st.set_page_config(page_title='Book Recommender', page_icon='📚',
+                   layout='centered', initial_sidebar_state='expanded')
 
-try:
-  face_cascade= cv2.CascadeClassifier('/content/haarcascade_frontalface_default.xml') # Face Detection
-except Exception:
-	st.write("Error loading cascade classifiers")
-
-RTC_CONFIGURATION = RTCConfiguration({"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]})
-
-class EmotionProcessor:
-  def recv(self, frame):
-    img = frame.to_ndarray(format="bgr24")
-    img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(
-    image=img_gray, scaleFactor=1.3, minNeighbors=5)
-    
-    for (x, y, w, h) in faces:
-      cv2.rectangle(img=img, pt1=(x, y), pt2=((x + w), y + h), color=(255, 0, 0), thickness=2)
-    return av.VideoFrame.from_ndarray(img, format="bgr24")
-  
-  
+#----------------- Recommenation book ------------------
 def main():
-  st.title('Facial Emotion Detection :-')
-  activity= ["Home", "Detect the emotion", "About the project"]
-  choice = st.sidebar.selectbox("Choose the option", activity)
-  if(choice=='Home'):
-    st.write('hello')
-  elif(choice=='Detect the emotion'):
-    webrtc_streamer(key="key",mode=WebRtcMode.SENDRECV,video_processor_factory=EmotionProcessor,rtc_configuration=RTC_CONFIGURATION,media_stream_constraints={"video": True,"audio": False  },async_processing=True)
+  #---------Loading model -------------------------------------
+  pivot_table=pickle.load(open('/content/book_tag.pkl','rb'))
+  model=pickle.load(open('/content/model.pkl','rb'))
+  image=pickle.load(open('/content/image (1).pkl','rb'))
+  book_info=pickle.load(open('/content/info_book.pkl','rb'))
 
-if __name__=='__main__':
-  main()
+  st.title('Book Recommendation Engine 📖')
+  book=st.selectbox('Enter name of the book',pivot_table.index)
+  if book is not None:
+    url=image[image['Book-Title']==book]['Image-URL-M'].values[0]
+    im2= Image.open(requests.get(url, stream=True).raw)
+    st.sidebar.markdown('**Book you choose**:- **{}**'.format(book))
+    st.sidebar.image(im2,width=120)
+    st.sidebar.text('------------------------------------------')
+  
+    recommendation=st.button('Recommend Book')
+    index=np.where(pivot_table.index==book)[0][0]
+    distances,suggestion=model.kneighbors(pivot_table.iloc[index,:].values.reshape(1,-1),n_neighbors=6)
+    with st.spinner():
+      if (recommendation is not False):
+        book1,book2,book3,book4,book5=pivot_table.index[suggestion[0][1:]]
+        col1,col2, col3, col4, col5= st.columns(5)
+        with col1:
+          st.markdown('**{}**'.format(book1))
+          url=image[image['Book-Title']==book1]['Image-URL-L'].values[0]
+          im2=Image.open(requests.get(url, stream=True).raw)
+          st.image(im2)
+    
+        with col2:
+          st.markdown('**{}**'.format(book2))
+          url=image[image['Book-Title']==book2]['Image-URL-L'].values[0]
+          im2=Image.open(requests.get(url, stream=True).raw)
+          st.image(im2)
+    
+
+        with col3:
+          st.markdown('**{}**'.format(book3))
+          url=image[image['Book-Title']==book3]['Image-URL-L'].values[0]
+          im2=Image.open(requests.get(url, stream=True).raw)
+          st.image(im2)
+    
+    
+        with col4: 
+          st.markdown('**{}**'.format(book4))
+          url=image[image['Book-Title']==book4]['Image-URL-L'].values[0]
+          im2=Image.open(requests.get(url, stream=True).raw)     
+          st.image(im2)
+   
+  
+        with col5:  
+          st.markdown('**{}**'.format(book5))
+          url=image[image['Book-Title']==book5]['Image-URL-L'].values[0]
+          im2=Image.open(requests.get(url, stream=True).raw) 
+          st.image(im2)
+
